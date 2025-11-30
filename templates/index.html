@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Blackjack Table</h2>
+
+  <div class="cards">
+    <h3>Dealer's Hand ({{ dealer_total }})</h3>
+    <ul class="card-list">
+      {% for card in dealer_cards %}
+        <li>{{ card.rank }} of {{ card.suit }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="cards">
+    <h3>Your Hand ({{ player_total }})</h3>
+    <ul class="card-list">
+      {% for card in player_cards %}
+        <li>{{ card.rank }} of {{ card.suit }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <p><strong>{{ message }}</strong></p>
+
+  {% if not finished %}
+    <form action="{{ url_for('hit') }}" method="get" style="display:inline;">
+      <button type="submit">Hit</button>
+    </form>
+    <form action="{{ url_for('stand') }}" method="get" style="display:inline;">
+      <button type="submit">Stand</button>
+    </form>
+  {% else %}
+    <form action="{{ url_for('new_game') }}" method="get" style="display:inline;">
+      <button type="submit">New Game</button>
+    </form>
+  {% endif %}
+{% endblock %}

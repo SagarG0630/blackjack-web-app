@@ -1,0 +1,231 @@
+from flask import Flask, render_template, redirect, url_for, request, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
+import random
+from functools import wraps
+
+app = Flask(__name__)
+app.secret_key = "change-me-for-production"
+
+# ----------------------------
+# Simple in-memory "database"
+# ----------------------------
+USERS = {}  # username -> password_hash
+
+# ----------------------------
+# Blackjack game logic
+# ----------------------------
+
+SUITS = ["hearts", "diamonds", "clubs", "spades"]
+RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+VALUES = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6,
+    "7": 7, "8": 8, "9": 9, "10": 10,
+    "J": 10, "Q": 10, "K": 10, "A": 11,
+}
+
+
+class Card:
+    def __init__(self, rank, suit):
+        self.rank = rank
+        self.suit = suit
+
+    def value(self):
+        return VALUES[self.rank]
+
+    def __repr__(self):
+        return f"{self.rank} of {self.suit}"
+
+
+class Deck:
+    def __init__(self):
+        self.cards = [Card(rank, suit) for suit in SUITS for rank in RANKS]
+        random.shuffle(self.cards)
+
+    def deal(self):
+        return self.cards.pop()
+
+
+def hand_value(cards):
+    total = sum(card.value() for card in cards)
+    aces = sum(1 for card in cards if card.rank == "A")
+
+    while total > 21 and aces > 0:
+        total -= 10
+        aces -= 1
+
+    return total
+
+
+class BlackjackGame:
+    def __init__(self):
+        self.deck = Deck()
+        self.player_cards = []
+        self.dealer_cards = []
+        self.finished = False
+        self.message = ""
+
+    def start(self):
+        self.deck = Deck()
+        self.player_cards = [self.deck.deal(), self.deck.deal()]
+        self.dealer_cards = [self.deck.deal(), self.deck.deal()]
+        self.finished = False
+        self.message = "Game started. Hit or stand?"
+
+    def player_hit(self):
+        if self.finished:
+            return
+        self.player_cards.append(self.deck.deal())
+        if hand_value(self.player_cards) > 21:
+            self.finished = True
+            self.message = "You busted! Dealer wins."
+
+    def player_stand(self):
+        if self.finished:
+            return
+        while hand_value(self.dealer_cards) < 17:
+            self.dealer_cards.append(self.deck.deal())
+
+        self.finished = True
+        player_total = hand_value(self.player_cards)
+        dealer_total = hand_value(self.dealer_cards)
+
+        if dealer_total > 21 or player_total > dealer_total:
+            self.message = "You win!"
+        elif player_total < dealer_total:
+            self.message = "Dealer wins."
+        else:
+            self.message = "Push (tie)."
+
+
+# one game per logged-in user
+GAMES = {}  # username -> BlackjackGame
+
+
+def get_current_user():
+    return session.get("user")
+
+
+def get_game_for_user(username):
+    game = GAMES.get(username)
+    if game is None:
+        game = BlackjackGame()
+        game.start()
+        GAMES[username] = game
+    return game
+
+
+# ----------------------------
+# Auth helpers / decorator
+# ----------------------------
+
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user" not in session:
+            flash("Please log in to access the game.")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return wrapper
+
+
+# ----------------------------
+# Auth routes
+# ----------------------------
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+
+        if not username or not password:
+            flash("Username and password are required.")
+            return redirect(url_for("register"))
+
+        if username in USERS:
+            flash("Username already exists.")
+            return redirect(url_for("register"))
+
+        password_hash = generate_password_hash(password)
+        USERS[username] = password_hash
+        flash("Account created! Please log in.")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+
+        password_hash = USERS.get(username)
+        if password_hash and check_password_hash(password_hash, password):
+            session["user"] = username
+            flash("Logged in successfully.")
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid username or password.")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    flash("You have been logged out.")
+    return redirect(url_for("login"))
+
+
+# ----------------------------
+# Game routes
+# ----------------------------
+
+@app.route("/")
+@login_required
+def index():
+    username = get_current_user()
+    game = get_game_for_user(username)
+
+    return render_template(
+        "index.html",
+        user=username,
+        player_cards=game.player_cards,
+        dealer_cards=game.dealer_cards,
+        player_total=hand_value(game.player_cards),
+        dealer_total=hand_value(game.dealer_cards),
+        message=game.message,
+        finished=game.finished,
+    )
+
+
+@app.route("/hit")
+@login_required
+def hit():
+    username = get_current_user()
+    game = get_game_for_user(username)
+    game.player_hit()
+    return redirect(url_for("index"))
+
+
+@app.route("/stand")
+@login_required
+def stand():
+    username = get_current_user()
+    game = get_game_for_user(username)
+    game.player_stand()
+    return redirect(url_for("index"))
+
+
+@app.route("/new")
+@login_required
+def new_game():
+    username = get_current_user()
+    game = get_game_for_user(username)
+    game.start()
+    return redirect(url_for("index"))
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
