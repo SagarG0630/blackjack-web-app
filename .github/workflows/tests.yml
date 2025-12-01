@@ -1,0 +1,49 @@
+name: Run Tests
+
+on:
+  push:          # Runs on every push to any branch
+  pull_request:  # Also runs in PRs
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      # Use SQLite for tests
+      DATABASE_URL: sqlite:///test.db
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run pytest with coverage (min 75%)
+        run: |
+          pytest --cov=. --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            htmlcov
+            coverage.xml
+            .coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}  # required for private repos, optional for public
