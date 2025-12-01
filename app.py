@@ -1,15 +1,34 @@
 from flask import Flask, render_template, redirect, url_for, request, session, flash
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
+import os
 from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
 
+# Set DATABASE_URL TO - postgresql://blackjack_user:password@localhost:5432/blackjack_dev
+# UPDATE to use deployed database instead of local one
+# Need to create table in Postgres with id (Primary Key), username [NOT NULL], and password_hash [NOT NULL], created_at [timestamp with timezone]
+DATABASE_URL = os.environ["DATABASE_URL"]
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    __tablename__ = "users"  # this must match your Postgres table name
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+
 # ----------------------------
 # Simple in-memory "database"
 # ----------------------------
-USERS = {}  # username -> password_hash
+# USERS = {}  # username -> password_hash
 
 # ----------------------------
 # Blackjack game logic
@@ -142,16 +161,23 @@ def register():
             flash("Username and password are required.")
             return redirect(url_for("register"))
 
-        if username in USERS:
+        # check if user already exists in Postgres
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
             flash("Username already exists.")
             return redirect(url_for("register"))
 
+        # create new user in Postgres
         password_hash = generate_password_hash(password)
-        USERS[username] = password_hash
+        user = User(username=username, password_hash=password_hash)
+        db.session.add(user)
+        db.session.commit()
+
         flash("Account created! Please log in.")
         return redirect(url_for("login"))
 
     return render_template("register.html")
+
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -160,15 +186,18 @@ def login():
         username = request.form["username"].strip()
         password = request.form["password"].strip()
 
-        password_hash = USERS.get(username)
-        if password_hash and check_password_hash(password_hash, password):
-            session["user"] = username
+        # fetch user from Postgres
+        user = User.query.filter_by(username=username).first()
+
+        if user and check_password_hash(user.password_hash, password):
+            session["user"] = user.username
             flash("Logged in successfully.")
             return redirect(url_for("index"))
         else:
             flash("Invalid username or password.")
 
     return render_template("login.html")
+
 
 
 @app.route("/logout")
