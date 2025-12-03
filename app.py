@@ -25,6 +25,14 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+class HandHistory(db.Model):
+    __tablename__ = "hand_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    result = db.Column(db.String(10), nullable=False)  # 'win', 'loss', 'push'
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
 # ----------------------------
 # Simple in-memory "database"
 # ----------------------------
