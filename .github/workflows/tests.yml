@@ -53,7 +53,7 @@ jobs:
     needs: test  # only deploy if tests pass
 
     # Only deploy on direct pushes to main (not PRs, not other branches)
-    if: github.ref == 'refs/heads/sgandhi-flyio-updates' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout code
