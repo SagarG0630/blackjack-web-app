@@ -106,7 +106,7 @@ class BlackjackGame:
         self.player_cards = []
         self.dealer_cards = []
         self.finished = False
-        self.message = ""
+               self.message = ""
 
     def start(self):
         self.deck = Deck()
@@ -216,6 +216,8 @@ def login():
 
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
+            # non‑permanent session: cookie expires when browser closes
+            session.permanent = False
             session["user"] = user.username
             # start game session timer
             session["session_start"] = datetime.utcnow().isoformat()
