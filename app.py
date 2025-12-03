@@ -11,7 +11,10 @@ app.secret_key = "change-me-for-production"
 
 # This creates a blackjack.db file in the same folder
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATABASE_URL = "sqlite:///" + os.path.join(BASE_DIR, "blackjack.db")
+
+# Default: local sqlite file in the repo (for dev)
+default_sqlite_path = os.path.join(BASE_DIR, "blackjack.db")
+DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{default_sqlite_path}")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -46,6 +49,8 @@ class ActionLog(db.Model):
     details = db.Column(db.Text)                        # optional JSON/message
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+with app.app_context():
+    db.create_all()
 
 # ----------------------------
 # Blackjack game logic
@@ -367,6 +372,4 @@ def new_game():
 
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
