@@ -370,6 +370,5 @@ def new_game():
 
     return redirect(url_for("index"))
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()  # no debug=True here
