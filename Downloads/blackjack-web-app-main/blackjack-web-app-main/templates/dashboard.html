@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>My Gameplay Dashboard</h2>
+  <p style="color: #666; margin-bottom: 30px;">Your personal blackjack statistics and game history</p>
+
+  <!-- Gameplay Statistics Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+    
+    <!-- Total Games -->
+    <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+      <h3 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Total Games</h3>
+      <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ stats.total_games }}</p>
+    </div>
+    
+    <!-- Wins -->
+    <div style="border: 1px solid #d4edda; padding: 20px; border-radius: 8px; background: #d4edda; text-align: center;">
+      <h3 style="margin: 0 0 10px 0; color: #155724; font-size: 0.9em;">Wins</h3>
+      <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #155724;">{{ stats.wins }}</p>
+    </div>
+    
+    <!-- Losses -->
+    <div style="border: 1px solid #f8d7da; padding: 20px; border-radius: 8px; background: #f8d7da; text-align: center;">
+      <h3 style="margin: 0 0 10px 0; color: #721c24; font-size: 0.9em;">Losses</h3>
+      <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #721c24;">{{ stats.losses }}</p>
+    </div>
+    
+    <!-- Pushes -->
+    <div style="border: 1px solid #fff3cd; padding: 20px; border-radius: 8px; background: #fff3cd; text-align: center;">
+      <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 0.9em;">Pushes</h3>
+      <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #856404;">{{ stats.pushes }}</p>
+    </div>
+    
+    <!-- Win Rate -->
+    <div style="border: 1px solid #cce5ff; padding: 20px; border-radius: 8px; background: #e7f3ff; text-align: center;">
+      <h3 style="margin: 0 0 10px 0; color: #004085; font-size: 0.9em;">Win Rate</h3>
+      <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #004085;">{{ stats.win_rate }}%</p>
+    </div>
+    
+  </div>
+
+  <!-- Recent Games History -->
+  <div style="margin: 30px 0;">
+    <h3>Recent Games (Last 10)</h3>
+    {% if recent_games %}
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; background: white;">
+        <thead>
+          <tr style="background: #f8f9fa;">
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Date & Time</th>
+            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for game in recent_games %}
+          <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 10px;">{{ game.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td style="padding: 10px; text-align: center;">
+              <span style="
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+                {% if game.result == 'win' %}background: #d4edda; color: #155724;
+                {% elif game.result == 'loss' %}background: #f8d7da; color: #721c24;
+                {% else %}background: #fff3cd; color: #856404;{% endif %}
+              ">
+                {{ game.result|title }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: #666; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+      No games played yet. <a href="{{ url_for('index') }}">Start playing!</a>
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- Game History Chart (Last 30 Days) -->
+  <div style="margin: 30px 0;">
+    <h3>Games Played (Last 30 Days)</h3>
+    {% if game_history %}
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; background: white;">
+        <thead>
+          <tr style="background: #f8f9fa;">
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Date</th>
+            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Games Played</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for day in game_history[-7:] %}
+          <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 10px;">{{ day.date.strftime('%Y-%m-%d') }}</td>
+            <td style="padding: 10px; text-align: center;">{{ day.games }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: #666; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+      No games in the last 30 days.
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- Quick Actions -->
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+    <a href="{{ url_for('index') }}" class="button">← Back to Game</a>
+  </div>
+{% endblock %}
