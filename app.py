@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import random
 import os
 from functools import wraps
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
@@ -35,14 +36,16 @@ class HandHistory(db.Model):
     result = db.Column(db.String(10), nullable=False)  # 'win', 'loss', 'push'
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+
 class ActionLog(db.Model):
     __tablename__ = "action_log"
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     action = db.Column(db.String(50), nullable=False)   # 'login', 'hit', 'stand', 'new_game', etc.
-    details = db.Column(db.Text)                       # optional JSON/message
+    details = db.Column(db.Text)                        # optional JSON/message
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
 
 # ----------------------------
 # Blackjack game logic
@@ -153,6 +156,13 @@ def get_game_for_user(username):
     return game
 
 
+def format_seconds_hhmmss(seconds: int) -> str:
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
 # ----------------------------
 # Auth helpers / decorator
 # ----------------------------
@@ -207,7 +217,15 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
             session["user"] = user.username
+            # start game session timer
+            session["session_start"] = datetime.utcnow().isoformat()
             flash("Logged in successfully.")
+
+            # log login action
+            log = ActionLog(user_id=user.id, action="login")
+            db.session.add(log)
+            db.session.commit()
+
             return redirect(url_for("index"))
         else:
             flash("Invalid username or password.")
@@ -217,7 +235,15 @@ def login():
 
 @app.route("/logout")
 def logout():
+    username = session.get("user")
+    user = User.query.filter_by(username=username).first() if username else None
+    if user:
+        log = ActionLog(user_id=user.id, action="logout")
+        db.session.add(log)
+        db.session.commit()
+
     session.pop("user", None)
+    session.pop("session_start", None)
     flash("You have been logged out.")
     return redirect(url_for("login"))
 
@@ -239,6 +265,16 @@ def index():
         losses = HandHistory.query.filter_by(user_id=user.id, result="loss").count()
         pushes = HandHistory.query.filter_by(user_id=user.id, result="push").count()
 
+    # session timer
+    session_time = "00:00:00"
+    start_str = session.get("session_start")
+    if start_str:
+        start = datetime.fromisoformat(start_str)
+        elapsed = int((datetime.utcnow() - start).total_seconds())
+        if elapsed < 0:
+            elapsed = 0
+        session_time = format_seconds_hhmmss(elapsed)
+
     return render_template(
         "index.html",
         user=username,
@@ -251,6 +287,7 @@ def index():
         wins=wins,
         losses=losses,
         pushes=pushes,
+        session_time=session_time,
     )
 
 
@@ -261,13 +298,20 @@ def hit():
     game = get_game_for_user(username)
     game.player_hit()
 
+    user = User.query.filter_by(username=username).first()
+
+    # log action
+    if user:
+        log = ActionLog(user_id=user.id, action="hit")
+        db.session.add(log)
+
     # if bust on hit, log a loss
-    if game.finished and "busted" in game.message:
-        user = User.query.filter_by(username=username).first()
-        if user:
-            record = HandHistory(user_id=user.id, result="loss")
-            db.session.add(record)
-            db.session.commit()
+    if game.finished and "busted" in game.message and user:
+        record = HandHistory(user_id=user.id, result="loss")
+        db.session.add(record)
+
+    if user:
+        db.session.commit()
 
     return redirect(url_for("index"))
 
@@ -279,8 +323,14 @@ def stand():
     game = get_game_for_user(username)
     game.player_stand()
 
-    # log result based on final message
     user = User.query.filter_by(username=username).first()
+
+    if user:
+        # log stand action
+        log = ActionLog(user_id=user.id, action="stand")
+        db.session.add(log)
+
+    # log result based on final message
     if user and game.finished:
         if "You win" in game.message:
             result = "win"
@@ -291,6 +341,8 @@ def stand():
 
         record = HandHistory(user_id=user.id, result=result)
         db.session.add(record)
+
+    if user:
         db.session.commit()
 
     return redirect(url_for("index"))
@@ -302,6 +354,13 @@ def new_game():
     username = get_current_user()
     game = get_game_for_user(username)
     game.start()
+
+    user = User.query.filter_by(username=username).first()
+    if user:
+        log = ActionLog(user_id=user.id, action="new_game")
+        db.session.add(log)
+        db.session.commit()
+
     return redirect(url_for("index"))
 
 
