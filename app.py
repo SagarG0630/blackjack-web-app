@@ -8,7 +8,7 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
 
-# This creates a blackjack.db file in the same folder as app-2.py
+# This creates a blackjack.db file in the same folder
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE_URL = "sqlite:///" + os.path.join(BASE_DIR, "blackjack.db")
 
