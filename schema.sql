@@ -1,21 +1,19 @@
--- Users table
-CREATE TABLE public.users (
-    id          SERIAL PRIMARY KEY,
-    username    VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    created_at  TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE users (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    username     TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at   TEXT DEFAULT (CURRENT_TIMESTAMP)
 );
 
--- Hand history table
-CREATE TABLE public.hand_history (
-    id           SERIAL PRIMARY KEY,
-    user_id      INT NOT NULL,
-    game_id      INT NOT NULL,
-    hand_number  INT NOT NULL,
-    timestamp    TIMESTAMPTZ DEFAULT NOW(),
-    result       VARCHAR(10) NOT NULL,
-    bet_amount   NUMERIC(10,2),
-    winnings     NUMERIC(10,2),
-    player_hand  VARCHAR(100),
-    dealer_hand  VARCHAR(100)
+CREATE TABLE hand_history (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL,
+    game_id      INTEGER NOT NULL,
+    hand_number  INTEGER NOT NULL,
+    timestamp    TEXT DEFAULT (CURRENT_TIMESTAMP),
+    result       TEXT NOT NULL,
+    bet_amount   REAL,
+    winnings     REAL,
+    player_hand  TEXT,
+    dealer_hand  TEXT
 );
