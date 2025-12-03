@@ -35,6 +35,14 @@ class HandHistory(db.Model):
     result = db.Column(db.String(10), nullable=False)  # 'win', 'loss', 'push'
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+class ActionLog(db.Model):
+    __tablename__ = "action_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    action = db.Column(db.String(50), nullable=False)   # 'login', 'hit', 'stand', 'new_game', etc.
+    details = db.Column(db.Text)                       # optional JSON/message
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 # ----------------------------
 # Blackjack game logic
