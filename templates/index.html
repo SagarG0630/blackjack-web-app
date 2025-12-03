@@ -3,6 +3,8 @@
 {% block content %}
   <h2>Blackjack Table</h2>
 
+  <p><strong>Record:</strong> {{ wins }} wins / {{ losses }} losses / {{ pushes }} pushes</p>
+
   <div class="cards">
     <h3>Dealer's Hand ({{ dealer_total }})</h3>
     <ul class="card-list">
