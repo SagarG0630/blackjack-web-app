@@ -8,7 +8,6 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
 
-# Use SQLite instead of Postgres
 # This creates a blackjack.db file in the same folder as app-2.py
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE_URL = "sqlite:///" + os.path.join(BASE_DIR, "blackjack.db")
@@ -162,13 +161,11 @@ def register():
             flash("Username and password are required.")
             return redirect(url_for("register"))
 
-        # check if user already exists in Postgres
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
             flash("Username already exists.")
             return redirect(url_for("register"))
 
-        # create new user in Postgres
         password_hash = generate_password_hash(password)
         user = User(username=username, password_hash=password_hash)
         db.session.add(user)
@@ -187,7 +184,6 @@ def login():
         username = request.form["username"].strip()
         password = request.form["password"].strip()
 
-        # fetch user from Postgres
         user = User.query.filter_by(username=username).first()
 
         if user and check_password_hash(user.password_hash, password):
