@@ -53,7 +53,8 @@ jobs:
     needs: test  # only deploy if tests pass
 
     # Only deploy on direct pushes to main (not PRs, not other branches)
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Ideally we should change this to only run if a PR is approved in main
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout code
