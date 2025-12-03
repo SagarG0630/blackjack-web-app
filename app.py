@@ -106,7 +106,7 @@ class BlackjackGame:
         self.player_cards = []
         self.dealer_cards = []
         self.finished = False
-               self.message = ""
+        self.message = ""
 
     def start(self):
         self.deck = Deck()
