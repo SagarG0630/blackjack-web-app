@@ -17,3 +17,11 @@ CREATE TABLE hand_history (
     player_hand  TEXT,
     dealer_hand  TEXT
 );
+
+CREATE TABLE action_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL,
+    action       TEXT NOT NULL,              -- 'login', 'hit', 'stand', 'new_game', etc.
+    details      TEXT,                       
+    created_at   TEXT DEFAULT (CURRENT_TIMESTAMP)
+);
