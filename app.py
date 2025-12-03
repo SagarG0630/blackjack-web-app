@@ -8,22 +8,23 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
 
-# Set DATABASE_URL TO - postgresql://blackjack_user:password@localhost:5432/blackjack_dev
-# UPDATE to use deployed database instead of local one
-# Need to create table in Postgres with id (Primary Key), username [NOT NULL], and password_hash [NOT NULL], created_at [timestamp with timezone]
-DATABASE_URL = os.environ["DATABASE_URL"]
+# Use SQLite instead of Postgres
+# This creates a blackjack.db file in the same folder as app-2.py
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DATABASE_URL = "sqlite:///" + os.path.join(BASE_DIR, "blackjack.db")
+
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
 class User(db.Model):
-    __tablename__ = "users"  # this must match your Postgres table name
+    __tablename__ = "users"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)  # becomes INTEGER PRIMARY KEY in SQLite
     username = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 # ----------------------------
 # Simple in-memory "database"
