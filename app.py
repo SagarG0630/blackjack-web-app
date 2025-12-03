@@ -17,6 +17,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -24,6 +25,7 @@ class User(db.Model):
     username = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
 
 class HandHistory(db.Model):
     __tablename__ = "hand_history"
@@ -33,10 +35,6 @@ class HandHistory(db.Model):
     result = db.Column(db.String(10), nullable=False)  # 'win', 'loss', 'push'
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-# ----------------------------
-# Simple in-memory "database"
-# ----------------------------
-# USERS = {}  # username -> password_hash
 
 # ----------------------------
 # Blackjack game logic
@@ -45,9 +43,19 @@ class HandHistory(db.Model):
 SUITS = ["hearts", "diamonds", "clubs", "spades"]
 RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 VALUES = {
-    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6,
-    "7": 7, "8": 8, "9": 9, "10": 10,
-    "J": 10, "Q": 10, "K": 10, "A": 11,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "10": 10,
+    "J": 10,
+    "Q": 10,
+    "K": 10,
+    "A": 11,
 }
 
 
@@ -75,11 +83,9 @@ class Deck:
 def hand_value(cards):
     total = sum(card.value() for card in cards)
     aces = sum(1 for card in cards if card.rank == "A")
-
     while total > 21 and aces > 0:
         total -= 10
         aces -= 1
-
     return total
 
 
@@ -111,11 +117,9 @@ class BlackjackGame:
             return
         while hand_value(self.dealer_cards) < 17:
             self.dealer_cards.append(self.deck.deal())
-
         self.finished = True
         player_total = hand_value(self.player_cards)
         dealer_total = hand_value(self.dealer_cards)
-
         if dealer_total > 21 or player_total > dealer_total:
             self.message = "You win!"
         elif player_total < dealer_total:
@@ -124,7 +128,7 @@ class BlackjackGame:
             self.message = "Push (tie)."
 
 
-# one game per logged-in user
+# one game per logged-in user (in memory)
 GAMES = {}  # username -> BlackjackGame
 
 
@@ -152,6 +156,7 @@ def login_required(f):
             flash("Please log in to access the game.")
             return redirect(url_for("login"))
         return f(*args, **kwargs)
+
     return wrapper
 
 
@@ -185,7 +190,6 @@ def register():
     return render_template("register.html")
 
 
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -193,7 +197,6 @@ def login():
         password = request.form["password"].strip()
 
         user = User.query.filter_by(username=username).first()
-
         if user and check_password_hash(user.password_hash, password):
             session["user"] = user.username
             flash("Logged in successfully.")
@@ -202,7 +205,6 @@ def login():
             flash("Invalid username or password.")
 
     return render_template("login.html")
-
 
 
 @app.route("/logout")
@@ -222,6 +224,13 @@ def index():
     username = get_current_user()
     game = get_game_for_user(username)
 
+    user = User.query.filter_by(username=username).first()
+    wins = losses = pushes = 0
+    if user:
+        wins = HandHistory.query.filter_by(user_id=user.id, result="win").count()
+        losses = HandHistory.query.filter_by(user_id=user.id, result="loss").count()
+        pushes = HandHistory.query.filter_by(user_id=user.id, result="push").count()
+
     return render_template(
         "index.html",
         user=username,
@@ -231,6 +240,9 @@ def index():
         dealer_total=hand_value(game.dealer_cards),
         message=game.message,
         finished=game.finished,
+        wins=wins,
+        losses=losses,
+        pushes=pushes,
     )
 
 
@@ -240,6 +252,15 @@ def hit():
     username = get_current_user()
     game = get_game_for_user(username)
     game.player_hit()
+
+    # if bust on hit, log a loss
+    if game.finished and "busted" in game.message:
+        user = User.query.filter_by(username=username).first()
+        if user:
+            record = HandHistory(user_id=user.id, result="loss")
+            db.session.add(record)
+            db.session.commit()
+
     return redirect(url_for("index"))
 
 
@@ -249,6 +270,21 @@ def stand():
     username = get_current_user()
     game = get_game_for_user(username)
     game.player_stand()
+
+    # log result based on final message
+    user = User.query.filter_by(username=username).first()
+    if user and game.finished:
+        if "You win" in game.message:
+            result = "win"
+        elif "Dealer wins" in game.message or "busted" in game.message:
+            result = "loss"
+        else:
+            result = "push"
+
+        record = HandHistory(user_id=user.id, result=result)
+        db.session.add(record)
+        db.session.commit()
+
     return redirect(url_for("index"))
 
 
@@ -262,4 +298,6 @@ def new_game():
 
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
