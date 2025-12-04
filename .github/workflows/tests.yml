@@ -1,8 +1,8 @@
 name: Run Tests
 
 on:
-  push:          # Runs on every push to any branch
-  pull_request:  # Also runs in PRs
+  push:
+  pull_request:
 
 jobs:
   security:
@@ -35,10 +35,9 @@ jobs:
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: security   # Only run unit tests if security scans pass
+    needs: security
 
     env:
-      # Use SQLite for unit tests
       DATABASE_URL: sqlite:///test_unit.db
 
     steps:
@@ -58,7 +57,6 @@ jobs:
 
       - name: Run unit tests with coverage (min 75%)
         run: |
-          # run everything EXCEPT integration tests
           pytest -m "not integration" \
             --cov=. \
             --cov-report=term-missing \
@@ -80,15 +78,14 @@ jobs:
           files: coverage.xml
           flags: unittests
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}  # required for private repos, optional for public
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: unit   # Only run integration tests if unit tests pass
+    needs: unit
 
     env:
-      # Separate DB for integration tests (optional but clean)
       DATABASE_URL: sqlite:///test_integration.db
 
     steps:
@@ -108,15 +105,12 @@ jobs:
 
       - name: Run integration tests
         run: |
-          # all tests in tests/integration/ are marked with pytestmark = pytest.mark.integration
           pytest -m "integration"
 
   deploy:
     runs-on: ubuntu-latest
-    needs: integration  # only deploy if security, unit, AND integration all pass
-
-    # Only deploy on direct pushes (not PRs)
-    if: github.event_name == 'push'
+    needs: integration
+    if: github.event_name == 'push'  # only deploy on push, not PRs
 
     steps:
       - name: Checkout code
@@ -130,3 +124,48 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           flyctl deploy --remote-only
+
+  smoke:
+    name: Post-deploy Playwright smoke tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    # Only run smoke on real pushes (same as deploy)
+    if: github.event_name == 'push'
+
+    env:
+      # Point to your Fly.io app URL
+      BASE_URL: https://blackjack-web-application.fly.dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright deps
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps
+
+      - name: Run Playwright smoke tests
+        run: |
+          npx playwright test --config=playwright.config.ts
+
+  dast:
+    name: OWASP ZAP Baseline Scan (DAST)
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push'
+
+    env:
+      TARGET_URL: https://blackjack-web-application.fly.dev
+
+    steps:
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ env.TARGET_URL }}
+          fail_action: false  # set to true if you want CI to fail on findings
