@@ -13,18 +13,20 @@ from collections import defaultdict
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
 
-# This creates a blackjack.db file in the same folder
+# Base dir where app.py lives
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-# Default: local sqlite file in the repo (for dev)
-default_sqlite_path = os.path.join(BASE_DIR, "blackjack.db")
+DB_DIR = os.environ.get("DB_DIR", BASE_DIR)
+
+# Default SQLite path (persistent)
+default_sqlite_path = os.path.join(DB_DIR, "blackjack.db")
+
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{default_sqlite_path}")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
-
 
 class User(db.Model):
     __tablename__ = "users"
