@@ -1,4 +1,5 @@
 # tests/test_dashboard.py
+from unittest.mock import patch, MagicMock
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
 from app import (
@@ -234,8 +235,16 @@ def test_admin_dashboard_requires_admin(client, db_session):
     assert response.status_code in [302, 200]
 
 
-def test_admin_dashboard_for_admin_user(client, db_session):
+@patch('app.get_test_coverage')
+@patch('app.get_test_results')
+@patch('app.get_code_quality_metrics')
+def test_admin_dashboard_for_admin_user(mock_code_quality, mock_test_results, mock_test_coverage, client, db_session):
     """Admin dashboard should be accessible to admin users"""
+    # Mock the slow subprocess and file system functions
+    mock_test_coverage.return_value = None
+    mock_test_results.return_value = None
+    mock_code_quality.return_value = {'total_files': 10, 'total_lines': 1000, 'test_lines': 200, 'code_to_test_ratio': 4.0}
+    
     # Create admin user
     pw_hash = generate_password_hash("adminpass")
     admin_user = User(username="admin", password_hash=pw_hash)
@@ -293,16 +302,27 @@ def test_dashboard_with_no_user(client, db_session):
     assert response.status_code in [200, 302]
 
 
-def test_get_test_coverage():
+@patch('app.os.path.exists')
+@patch('app.ET.parse')
+@patch('app.subprocess.run')
+def test_get_test_coverage(mock_subprocess, mock_parse, mock_exists):
     """Test get_test_coverage function"""
-    # This will likely return None in test environment, but we test it doesn't crash
+    # Mock file not existing and subprocess failing
+    mock_exists.return_value = False
+    mock_subprocess.return_value = MagicMock(returncode=1, stdout="")
+    
     coverage = get_test_coverage()
     assert coverage is None or isinstance(coverage, (int, float))
 
 
-def test_get_test_results():
+@patch('app.os.path.exists')
+@patch('app.subprocess.run')
+def test_get_test_results(mock_subprocess, mock_exists):
     """Test get_test_results function"""
-    # This may return None in test environment, but we test it doesn't crash
+    # Mock file not existing and subprocess failing to avoid running pytest inside pytest
+    mock_exists.return_value = False
+    mock_subprocess.side_effect = FileNotFoundError("pytest not found")
+    
     results = get_test_results()
     assert results is None or isinstance(results, dict)
 
@@ -429,8 +449,16 @@ def test_get_ci_cd_status():
     assert 'last_check' in status
 
 
-def test_admin_dashboard_route_execution(client, db_session):
+@patch('app.get_test_coverage')
+@patch('app.get_test_results')
+@patch('app.get_code_quality_metrics')
+def test_admin_dashboard_route_execution(mock_code_quality, mock_test_results, mock_test_coverage, client, db_session):
     """Test that admin dashboard route executes all helper functions"""
+    # Mock the slow subprocess and file system functions to avoid timeouts
+    mock_test_coverage.return_value = None
+    mock_test_results.return_value = None
+    mock_code_quality.return_value = {'total_files': 10, 'total_lines': 1000, 'test_lines': 200, 'code_to_test_ratio': 4.0}
+    
     # Create admin user
     pw_hash = generate_password_hash("adminpass")
     admin_user = User(username="admin", password_hash=pw_hash)
