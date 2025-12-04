@@ -182,36 +182,36 @@
       {% if test_results %}
       <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
         <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Total Tests</h4>
-        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ test_results.total }}</p>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ test_results.get('total', 0) }}</p>
       </div>
       
       <div style="border: 1px solid #d4edda; padding: 20px; border-radius: 8px; background: #d4edda; text-align: center;">
         <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 0.9em;">Passed</h4>
-        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #155724;">{{ test_results.passed }}</p>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #155724;">{{ test_results.get('passed', 0) }}</p>
       </div>
       
-      <div style="border: 1px solid {% if test_results.failed > 0 %}#f8d7da{% else %}#d4edda{% endif %}; padding: 20px; border-radius: 8px; background: {% if test_results.failed > 0 %}#f8d7da{% else %}#d4edda{% endif %}; text-align: center;">
-        <h4 style="margin: 0 0 10px 0; color: {% if test_results.failed > 0 %}#721c24{% else %}#155724{% endif %}; font-size: 0.9em;">Failed</h4>
-        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: {% if test_results.failed > 0 %}#721c24{% else %}#155724{% endif %};">{{ test_results.failed }}</p>
+      <div style="border: 1px solid {% if test_results.get('failed', 0) > 0 %}#f8d7da{% else %}#d4edda{% endif %}; padding: 20px; border-radius: 8px; background: {% if test_results.get('failed', 0) > 0 %}#f8d7da{% else %}#d4edda{% endif %}; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: {% if test_results.get('failed', 0) > 0 %}#721c24{% else %}#155724{% endif %}; font-size: 0.9em;">Failed</h4>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: {% if test_results.get('failed', 0) > 0 %}#721c24{% else %}#155724{% endif %};">{{ test_results.get('failed', 0) }}</p>
       </div>
       
       <div style="border: 1px solid #fff3cd; padding: 20px; border-radius: 8px; background: #fff3cd; text-align: center;">
         <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 0.9em;">Skipped</h4>
-        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #856404;">{{ test_results.skipped }}</p>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #856404;">{{ test_results.get('skipped', 0) }}</p>
       </div>
       
-      {% if test_results.duration > 0 %}
+      {% if test_results.get('duration', 0) > 0 %}
       <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
         <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Duration</h4>
-        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ "%.2f"|format(test_results.duration) }}s</p>
+        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ "%.2f"|format(test_results.get('duration', 0)) }}s</p>
       </div>
       {% endif %}
       {% endif %}
       
     </div>
     
-    {% if test_results and test_results.last_run %}
-    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Last run: {{ test_results.last_run[:19] }}</p>
+    {% if test_results and test_results.get('last_run') %}
+    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Last run: {{ test_results.get('last_run', '')[:19] }}</p>
     {% endif %}
   </div>
 

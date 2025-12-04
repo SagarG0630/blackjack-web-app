@@ -658,96 +658,51 @@ def new_game():
 def get_test_coverage():
     """Get current test coverage percentage"""
     try:
-        # Try to read coverage.xml if it exists
+        # Try to read coverage.xml if it exists (fastest method)
         if os.path.exists('coverage.xml'):
-            tree = ET.parse('coverage.xml')
-            root = tree.getroot()
-            # Find line-rate attribute
-            line_rate = float(root.get('line-rate', 0))
-            return round(line_rate * 100, 2)
+            try:
+                tree = ET.parse('coverage.xml')
+                root = tree.getroot()
+                # Find line-rate attribute
+                line_rate = float(root.get('line-rate', 0))
+                return round(line_rate * 100, 2)
+            except (ET.ParseError, ValueError, AttributeError):
+                pass
         
-        # Try to run coverage report
-        result = subprocess.run(
-            ['python', '-m', 'coverage', 'report', '--format=total'],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        if result.returncode == 0:
-            # Parse coverage output
-            for line in result.stdout.split('\n'):
-                if 'TOTAL' in line:
-                    parts = line.split()
-                    if len(parts) >= 4:
-                        try:
-                            covered = int(parts[3])
-                            total = int(parts[1])
-                            if total > 0:
-                                return round((covered / total) * 100, 2)
-                        except (ValueError, IndexError):
-                            pass
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-        pass
-    
-    # Default: return None if can't determine
-    return None
+        # Skip subprocess calls in production/runtime - too slow
+        # Only read from existing files
+        return None
+    except Exception:
+        # Silently fail - don't break dashboard
+        return None
 
 
 def get_test_results():
-    """Get latest test run results"""
+    """Get latest test run results - only reads from existing files, no subprocess calls"""
     try:
-        # Run pytest with JSON output
-        result = subprocess.run(
-            ['python', '-m', 'pytest', '--json-report', '--json-report-file=test-report.json', '-q'],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        
-        # Try to read JSON report
+        # Try to read JSON report if it exists (fastest method)
         if os.path.exists('test-report.json'):
-            with open('test-report.json', 'r') as f:
-                report = json.load(f)
-                return {
-                    'total': report.get('summary', {}).get('total', 0),
-                    'passed': report.get('summary', {}).get('passed', 0),
-                    'failed': report.get('summary', {}).get('failed', 0),
-                    'skipped': report.get('summary', {}).get('skipped', 0),
-                    'duration': report.get('duration', 0),
-                    'exitcode': result.returncode,
-                    'last_run': datetime.utcnow().isoformat()
-                }
-    except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError, Exception):
-        pass
-    
-    # Fallback: try simple pytest run
-    try:
-        result = subprocess.run(
-            ['python', '-m', 'pytest', '-v', '--tb=no'],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        # Parse output manually
-        output = result.stdout
-        passed = output.count(' PASSED')
-        failed = output.count(' FAILED')
-        skipped = output.count(' SKIPPED')
-        total = passed + failed + skipped
+            try:
+                with open('test-report.json', 'r') as f:
+                    report = json.load(f)
+                    return {
+                        'total': report.get('summary', {}).get('total', 0),
+                        'passed': report.get('summary', {}).get('passed', 0),
+                        'failed': report.get('summary', {}).get('failed', 0),
+                        'skipped': report.get('summary', {}).get('skipped', 0),
+                        'duration': report.get('duration', 0),
+                        'exitcode': report.get('exitcode', 0),
+                        'last_run': datetime.utcnow().isoformat()
+                    }
+            except (json.JSONDecodeError, IOError, KeyError):
+                pass
         
-        return {
-            'total': total,
-            'passed': passed,
-            'failed': failed,
-            'skipped': skipped,
-            'duration': 0,
-            'exitcode': result.returncode,
-            'last_run': datetime.utcnow().isoformat()
-        }
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-        pass
-    
-    return None
+        # Skip subprocess calls in production/runtime - too slow
+        # Only read from existing files
+        return None
+    except Exception:
+        # Silently fail - don't break dashboard
+        return None
 
 
 def get_security_metrics():
@@ -828,29 +783,45 @@ def get_performance_metrics():
 
 
 def get_code_quality_metrics():
-    """Get code quality metrics"""
+    """Get code quality metrics - optimized to avoid slow directory walking"""
     try:
-        # Count Python files
+        # Limit directory walking to avoid performance issues
+        # Only check common directories, not entire tree
         python_files = []
-        for root, dirs, files in os.walk('.'):
-            # Skip virtual envs and hidden dirs
-            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['__pycache__', 'venv', 'env']]
-            for file in files:
-                if file.endswith('.py'):
-                    python_files.append(os.path.join(root, file))
+        dirs_to_check = ['app.py', 'tests']
         
-        # Count lines (simple approach)
+        for item in dirs_to_check:
+            if os.path.isfile(item) and item.endswith('.py'):
+                python_files.append(item)
+            elif os.path.isdir(item):
+                try:
+                    for root, dirs, files in os.walk(item):
+                        # Skip hidden dirs and cache
+                        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['__pycache__']]
+                        for file in files:
+                            if file.endswith('.py'):
+                                python_files.append(os.path.join(root, file))
+                except (OSError, PermissionError):
+                    pass
+        
+        # Count lines (limit to avoid slow I/O)
         total_lines = 0
         test_lines = 0
-        for file_path in python_files:
+        max_files = 50  # Limit to prevent slow operations
+        
+        for file_path in python_files[:max_files]:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     lines = f.readlines()
                     total_lines += len(lines)
                     if 'test' in file_path.lower():
                         test_lines += len(lines)
-            except (UnicodeDecodeError, IOError):
+            except (UnicodeDecodeError, IOError, OSError):
                 pass
+        
+        # If we hit the limit, estimate
+        if len(python_files) > max_files:
+            total_lines = int(total_lines * (len(python_files) / max_files))
         
         return {
             'total_files': len(python_files),
@@ -1155,32 +1126,80 @@ def dashboard():
 @admin_required
 def admin_dashboard():
     """Admin dashboard showing DevOps metrics: testing, security, CI/CD, performance"""
-    test_coverage = get_test_coverage()
-    test_results = get_test_results()
-    security_metrics = get_security_metrics()
-    security_score = get_security_score()
-    critical_issues = get_critical_issues()
-    action_items = get_action_items()
-    system_health = get_system_health_summary()
-    ci_cd_status = get_ci_cd_status()
-    performance_metrics = get_performance_metrics()
-    code_quality = get_code_quality_metrics()
-    infrastructure = get_infrastructure_health()
-    
-    return render_template(
-        "admin/dashboard.html",
-        test_coverage=test_coverage,
-        test_results=test_results,
-        security_metrics=security_metrics,
-        security_score=security_score,
-        critical_issues=critical_issues,
-        action_items=action_items,
-        system_health=system_health,
-        ci_cd_status=ci_cd_status,
-        performance_metrics=performance_metrics,
-        code_quality=code_quality,
-        infrastructure=infrastructure
-    )
+    try:
+        # Wrap all calls in try-except to prevent Internal Server Errors
+        test_coverage = get_test_coverage()
+        test_results = get_test_results()
+        security_metrics = get_security_metrics()
+        security_score = get_security_score()
+        critical_issues = get_critical_issues()
+        action_items = get_action_items()
+        system_health = get_system_health_summary()
+        ci_cd_status = get_ci_cd_status()
+        performance_metrics = get_performance_metrics()
+        code_quality = get_code_quality_metrics()
+        infrastructure = get_infrastructure_health()
+        
+        # Ensure all values are safe for template rendering
+        if test_results is None:
+            test_results = {
+                'total': 0,
+                'passed': 0,
+                'failed': 0,
+                'skipped': 0,
+                'duration': 0,
+                'exitcode': 0,
+                'last_run': None
+            }
+        
+        if code_quality is None:
+            code_quality = {
+                'total_files': 0,
+                'total_lines': 0,
+                'test_lines': 0,
+                'code_to_test_ratio': 0
+            }
+        
+        if system_health is None:
+            system_health = {
+                'overall_status': 'unknown',
+                'overall_message': 'Unable to determine system health',
+                'health_score': 0,
+                'components': {}
+            }
+        
+        return render_template(
+            "admin/dashboard.html",
+            test_coverage=test_coverage,
+            test_results=test_results,
+            security_metrics=security_metrics,
+            security_score=security_score,
+            critical_issues=critical_issues or [],
+            action_items=action_items or [],
+            system_health=system_health,
+            ci_cd_status=ci_cd_status,
+            performance_metrics=performance_metrics,
+            code_quality=code_quality,
+            infrastructure=infrastructure
+        )
+    except Exception as e:
+        # Log error and return a safe error page
+        app.logger.error(f"Error loading admin dashboard: {str(e)}", exc_info=True)
+        flash(f"Error loading dashboard: {str(e)}", "error")
+        return render_template(
+            "admin/dashboard.html",
+            test_coverage=None,
+            test_results={'total': 0, 'passed': 0, 'failed': 0, 'skipped': 0, 'duration': 0, 'exitcode': 0, 'last_run': None},
+            security_metrics={},
+            security_score={'percentage': 0, 'grade': 'F'},
+            critical_issues=[],
+            action_items=[],
+            system_health={'overall_status': 'error', 'overall_message': 'Error loading dashboard', 'health_score': 0, 'components': {}},
+            ci_cd_status={},
+            performance_metrics={},
+            code_quality={'total_files': 0, 'total_lines': 0, 'test_lines': 0, 'code_to_test_ratio': 0},
+            infrastructure={}
+        )
 
 
 if __name__ == "__main__":
