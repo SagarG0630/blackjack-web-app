@@ -1180,6 +1180,5 @@ def admin_dashboard():
         infrastructure=infrastructure
     )
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()  # no debug=True here
