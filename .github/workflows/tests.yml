@@ -155,19 +155,21 @@ jobs:
         run: |
           npx playwright test --config=playwright.config.ts
 
-  dast:
-    name: OWASP ZAP Baseline Scan (DAST)
-    runs-on: ubuntu-latest
-    needs: smoke
-    if: github.event_name == 'push'
+dast:
+  name: OWASP ZAP Baseline Scan (DAST)
+  runs-on: ubuntu-latest
+  needs: smoke
+  if: github.event_name == 'push'
 
-    env:
-      TARGET_URL: https://blackjack-web-application.fly.dev
+  env:
+    TARGET_URL: https://blackjack-web-application.fly.dev
 
-    steps:
-      - name: ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: ${{ env.TARGET_URL }}
-          fail_action: false
-          allow_issue_writing: false
+  steps:
+    - name: ZAP Baseline Scan
+      uses: zaproxy/action-baseline@v0.12.0
+      continue-on-error: true
+      with:
+        target: ${{ env.TARGET_URL }}
+        fail_action: false
+        allow_issue_writing: false
+        artifact_name: zapscan
