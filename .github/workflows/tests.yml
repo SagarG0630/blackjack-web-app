@@ -1,14 +1,44 @@
 name: Run Tests
 
 on:
-  push:
-  pull_request:
+  push:          # Runs on every push to any branch
+  pull_request:  # Also runs in PRs
 
 jobs:
-  unit:
+  security:
+    name: Security Scans (SAST & Dependency Audit)
     runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies + security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit pip-audit
+
+      - name: Run Bandit (static application security testing)
+        run: |
+          bandit -r . -lll
+
+      - name: Run pip-audit (dependency vulnerability scan)
+        run: |
+          pip-audit -r requirements.txt
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: security   # Only run unit tests if security scans pass
+
     env:
+      # Use SQLite for unit tests
       DATABASE_URL: sqlite:///test_unit.db
 
     steps:
@@ -29,20 +59,36 @@ jobs:
       - name: Run unit tests with coverage (min 75%)
         run: |
           # run everything EXCEPT integration tests
-          pytest -m "not integration" --cov=. --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+          pytest -m "not integration" \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=75
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
-          path: coverage.xml
+          name: coverage-report
+          path: |
+            htmlcov
+            coverage.xml
+            .coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}  # required for private repos, optional for public
 
   integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
-    needs: unit   # only run if unit job passes
+    needs: unit   # Only run integration tests if unit tests pass
 
     env:
-      # can point to a separate DB file if you want to keep it clean
+      # Separate DB for integration tests (optional but clean)
       DATABASE_URL: sqlite:///test_integration.db
 
     steps:
@@ -62,4 +108,25 @@ jobs:
 
       - name: Run integration tests
         run: |
+          # all tests in tests/integration/ are marked with pytestmark = pytest.mark.integration
           pytest -m "integration"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: integration  # only deploy if security, unit, AND integration all pass
+
+    # Only deploy on direct pushes (not PRs)
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --remote-only
