@@ -254,6 +254,110 @@ def test_admin_can_access_admin_dashboard(client, db_session, monkeypatch):
     assert b"dashboard" in resp.data.lower() or b"devops" in resp.data.lower()
 
 
+def test_admin_login_with_default_credentials_can_access_admin_dashboard(client, db_session, monkeypatch):
+    """
+    Admin should be able to log in with the default credentials
+    (username: admin, password: Admin123) and access /admin/dashboard.
+
+    This uses the same heavy-metric monkeypatching as the other admin test
+    so it stays fast and doesn't trigger subprocesses.
+    """
+    # Create admin user in the test DB with the same creds as production
+    create_user(db_session, "admin", "Admin123")
+
+    # Log in with the default admin credentials
+    login_user(client, "admin", "Admin123")
+
+    # Monkeypatch heavy helper functions to avoid subprocess calls / external deps
+    monkeypatch.setattr("app.get_test_coverage", lambda: 90.0)
+    monkeypatch.setattr(
+        "app.get_test_results",
+        lambda: {"total": 10, "passed": 10, "failed": 0, "skipped": 0, "duration": 1},
+    )
+    monkeypatch.setattr(
+        "app.get_security_metrics",
+        lambda: {
+            "logins_24h": 1,
+            "logins_7d": 2,
+            "secret_key_secure": False,
+            "https_enforced": False,
+            "using_orm": True,
+            "xss_protected": True,
+        },
+    )
+    monkeypatch.setattr(
+        "app.get_security_score",
+        lambda: {
+            "score": 80,
+            "max_score": 100,
+            "percentage": 80.0,
+            "grade": "B",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr("app.get_critical_issues", lambda: [])
+    monkeypatch.setattr("app.get_action_items", lambda: [])
+    monkeypatch.setattr(
+        "app.get_system_health_summary",
+        lambda: {
+            "overall_status": "healthy",
+            "overall_message": "All systems operational",
+            "health_score": 100.0,
+            "components": {},
+            "last_check": "now",
+        },
+    )
+    monkeypatch.setattr(
+        "app.get_ci_cd_status",
+        lambda: {
+            "is_ci": False,
+            "github_actions": False,
+            "has_coverage": False,
+            "has_test_report": False,
+            "last_check": "now",
+        },
+    )
+    monkeypatch.setattr(
+        "app.get_performance_metrics",
+        lambda: {
+            "total_users": 1,
+            "total_games": 1,
+            "total_actions": 1,
+            "avg_games_per_user": 1.0,
+            "games_last_hour": 1,
+            "actions_last_hour": 1,
+            "activity_rate": 1.0,
+        },
+    )
+    monkeypatch.setattr(
+        "app.get_code_quality_metrics",
+        lambda: {
+            "total_files": 1,
+            "total_lines": 10,
+            "test_lines": 5,
+            "code_to_test_ratio": 1.0,
+        },
+    )
+    monkeypatch.setattr(
+        "app.get_infrastructure_health",
+        lambda: {
+            "database_status": "connected",
+            "database_type": "SQLite",
+            "python_version": "3.13.0",
+            "flask_version": "3.1.2",
+            "environment": "development",
+            "is_production": False,
+        },
+    )
+
+    # Hit the admin dashboard
+    resp = client.get("/admin/dashboard", follow_redirects=True)
+
+    assert resp.status_code == 200
+    # Page should look like an admin/devops dashboard
+    assert b"dashboard" in resp.data.lower() or b"devops" in resp.data.lower()
+
+
 # ---------------------------------------------------------
 # Gameplay Integration
 # ---------------------------------------------------------

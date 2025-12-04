@@ -5,3 +5,5 @@ venv/
 .coverage
 *.db
 instance/
+test-results
+node_modules
