@@ -428,7 +428,7 @@ def test_get_ci_cd_status():
     assert 'has_test_report' in status
     assert 'last_check' in status
 
-# test2
+# test3
 # def test_admin_dashboard_route_execution(client, db_session):
 #     """Test that admin dashboard route executes all helper functions"""
 #     # Create admin user
