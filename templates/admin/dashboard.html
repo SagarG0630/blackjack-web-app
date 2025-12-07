@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Admin Dashboard - DevOps Metrics</h2>
+  <p style="color: #666; margin-bottom: 30px;">Testing, Security, CI/CD, and Performance Monitoring</p>
+
+  <!-- System Health Summary -->
+  <div style="margin: 30px 0;">
+    <div style="padding: 20px; background: {% if system_health.overall_status == 'healthy' %}#d4edda{% elif system_health.overall_status == 'warning' %}#fff3cd{% else %}#f8d7da{% endif %}; border-radius: 8px; border-left: 4px solid {% if system_health.overall_status == 'healthy' %}#28a745{% elif system_health.overall_status == 'warning' %}#ffc107{% else %}#dc3545{% endif %};">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <div>
+          <h3 style="margin: 0 0 10px 0; color: {% if system_health.overall_status == 'healthy' %}#155724{% elif system_health.overall_status == 'warning' %}#856404{% else %}#721c24{% endif %};">
+            System Health: {{ system_health.overall_status|title }}
+          </h3>
+          <p style="margin: 0; color: {% if system_health.overall_status == 'healthy' %}#155724{% elif system_health.overall_status == 'warning' %}#856404{% else %}#721c24{% endif %};">
+            {{ system_health.overall_message }} | Health Score: {{ system_health.health_score }}%
+          </p>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 2.5em; font-weight: bold; color: {% if system_health.overall_status == 'healthy' %}#28a745{% elif system_health.overall_status == 'warning' %}#ffc107{% else %}#dc3545{% endif %};">
+            {{ system_health.health_score }}%
+          </div>
+        </div>
+      </div>
+      
+      <!-- Component Status -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+        {% for name, comp in system_health.components.items() %}
+        <div style="padding: 10px; background: white; border-radius: 4px;">
+          <strong>{{ name|title }}:</strong>
+          <span style="color: {% if comp.status == 'healthy' %}#28a745{% elif comp.status == 'warning' %}#ffc107{% else %}#dc3545{% endif %};">
+            {{ comp.status|title }}
+          </span>
+          <div style="font-size: 0.9em; color: #666; margin-top: 5px;">{{ comp.message }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Critical Issues Alert Section -->
+  {% if critical_issues %}
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Critical Issues</h3>
+    {% for issue in critical_issues %}
+    <div style="margin: 15px 0; padding: 15px; background: {% if issue.severity == 'critical' %}#f8d7da{% elif issue.severity == 'high' %}#fff3cd{% else %}#d1ecf1{% endif %}; border-left: 4px solid {% if issue.severity == 'critical' %}#dc3545{% elif issue.severity == 'high' %}#ffc107{% else %}#0c5460{% endif %}; border-radius: 4px;">
+      <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap;">
+        <div style="flex: 1;">
+          <h4 style="margin: 0 0 5px 0; color: {% if issue.severity == 'critical' %}#721c24{% elif issue.severity == 'high' %}#856404{% else %}#0c5460{% endif %};">
+            [{{ issue.severity|upper }}] {{ issue.title }}
+          </h4>
+          <p style="margin: 5px 0; color: #666;">{{ issue.description }}</p>
+          <div style="margin-top: 10px; font-size: 0.9em;">
+            <strong>Fix:</strong> {{ issue.fix }} | 
+            <strong>Time:</strong> {{ issue.time }} | 
+            <strong>File:</strong> {{ issue.file }}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Security Score Dashboard -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Security Score</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0;">
+      <!-- Security Score Card -->
+      <div style="border: 1px solid #ddd; padding: 30px; border-radius: 8px; background: {% if security_score.percentage >= 75 %}#d4edda{% elif security_score.percentage >= 50 %}#fff3cd{% else %}#f8d7da{% endif %}; text-align: center;">
+        <h4 style="margin: 0 0 15px 0; color: #666; font-size: 1em;">Overall Security Score</h4>
+        <div style="font-size: 4em; font-weight: bold; color: {% if security_score.percentage >= 75 %}#28a745{% elif security_score.percentage >= 50 %}#ffc107{% else %}#dc3545{% endif %}; margin: 20px 0;">
+          {{ security_score.percentage }}%
+        </div>
+        <div style="font-size: 2em; font-weight: bold; color: {% if security_score.percentage >= 75 %}#28a745{% elif security_score.percentage >= 50 %}#ffc107{% else %}#dc3545{% endif %};">
+          Grade: {{ security_score.grade }}
+        </div>
+        <div style="margin-top: 20px; font-size: 0.9em; color: #666;">
+          {{ security_score.score }} / {{ security_score.max_score }} points
+        </div>
+      </div>
+      
+      <!-- Security Issues -->
+      {% if security_score.issues %}
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f8f9fa;">
+        <h4 style="margin: 0 0 15px 0;">Security Issues</h4>
+        <ul style="margin: 0; padding-left: 20px;">
+          {% for issue in security_score.issues %}
+          <li style="margin: 8px 0; color: #721c24;">{{ issue }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+    
+    <!-- Progress Bar -->
+    <div style="margin-top: 20px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span style="font-size: 0.9em; color: #666;">Security Score Progress</span>
+        <span style="font-size: 0.9em; color: #666;">{{ security_score.percentage }}%</span>
+      </div>
+      <div style="width: 100%; height: 30px; background: #e9ecef; border-radius: 15px; overflow: hidden;">
+        <div style="width: {{ security_score.percentage }}%; height: 100%; background: {% if security_score.percentage >= 75 %}#28a745{% elif security_score.percentage >= 50 %}#ffc107{% else %}#dc3545{% endif %}; transition: width 0.3s;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Items Checklist -->
+  {% if action_items %}
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Action Items</h3>
+    <p style="color: #666; margin-bottom: 15px;">Priority checklist of issues to fix</p>
+    
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; background: white;">
+        <thead>
+          <tr style="background: #f8f9fa;">
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Status</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Priority</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Issue</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Fix</th>
+            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Time</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">File</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in action_items %}
+          <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 10px;">
+              <span style="font-size: 1.2em;">☐</span>
+            </td>
+            <td style="padding: 10px;">
+              <span style="
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.85em;
+                font-weight: bold;
+                {% if item.severity == 'critical' %}background: #f8d7da; color: #721c24;
+                {% elif item.severity == 'high' %}background: #fff3cd; color: #856404;
+                {% elif item.severity == 'medium' %}background: #d1ecf1; color: #0c5460;
+                {% else %}background: #e2e3e5; color: #383d41;{% endif %}
+              ">
+                {{ item.severity|upper }}
+              </span>
+            </td>
+            <td style="padding: 10px;">
+              <strong>{{ item.title }}</strong>
+              <div style="font-size: 0.9em; color: #666; margin-top: 5px;">{{ item.description }}</div>
+            </td>
+            <td style="padding: 10px;">{{ item.fix }}</td>
+            <td style="padding: 10px; text-align: center;">{{ item.estimated_time }}</td>
+            <td style="padding: 10px; font-family: monospace; font-size: 0.9em;">{{ item.file }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Testing Metrics Section -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Testing Metrics</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+      
+      <!-- Test Coverage -->
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Test Coverage</h4>
+        {% if test_coverage is not none %}
+          <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: {% if test_coverage >= 75 %}#28a745{% else %}#dc3545{% endif %};">
+            {{ test_coverage }}%
+          </p>
+          <p style="font-size: 0.8em; color: #666;">Target: 75%</p>
+        {% else %}
+          <p style="font-size: 1.2em; color: #999;">Not Available</p>
+        {% endif %}
+      </div>
+      
+      <!-- Test Results -->
+      {% if test_results %}
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Total Tests</h4>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ test_results.get('total', 0) }}</p>
+      </div>
+      
+      <div style="border: 1px solid #d4edda; padding: 20px; border-radius: 8px; background: #d4edda; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 0.9em;">Passed</h4>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #155724;">{{ test_results.get('passed', 0) }}</p>
+      </div>
+      
+      <div style="border: 1px solid {% if test_results.get('failed', 0) > 0 %}#f8d7da{% else %}#d4edda{% endif %}; padding: 20px; border-radius: 8px; background: {% if test_results.get('failed', 0) > 0 %}#f8d7da{% else %}#d4edda{% endif %}; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: {% if test_results.get('failed', 0) > 0 %}#721c24{% else %}#155724{% endif %}; font-size: 0.9em;">Failed</h4>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: {% if test_results.get('failed', 0) > 0 %}#721c24{% else %}#155724{% endif %};">{{ test_results.get('failed', 0) }}</p>
+      </div>
+      
+      <div style="border: 1px solid #fff3cd; padding: 20px; border-radius: 8px; background: #fff3cd; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 0.9em;">Skipped</h4>
+        <p style="font-size: 2.5em; margin: 10px 0; font-weight: bold; color: #856404;">{{ test_results.get('skipped', 0) }}</p>
+      </div>
+      
+      {% if test_results.get('duration', 0) > 0 %}
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Duration</h4>
+        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: #333;">{{ "%.2f"|format(test_results.get('duration', 0)) }}s</p>
+      </div>
+      {% endif %}
+      {% endif %}
+      
+    </div>
+    
+    {% if test_results and test_results.get('last_run') %}
+    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Last run: {{ test_results.get('last_run', '')[:19] }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Security Metrics Section -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Security Metrics</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Logins (24h)</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ security_metrics.logins_24h }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Logins (7d)</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ security_metrics.logins_7d }}</p>
+      </div>
+      
+    </div>
+    
+    <!-- Security Best Practices -->
+    <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+      <h4 style="margin: 0 0 15px 0;">Security Best Practices</h4>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+        <div>
+          <strong>Secret Key:</strong>
+          <span style="color: {% if security_metrics.secret_key_secure %}#28a745{% else %}#dc3545{% endif %};">
+            {% if security_metrics.secret_key_secure %}Secure{% else %}Not Secure{% endif %}
+          </span>
+        </div>
+        <div>
+          <strong>HTTPS:</strong>
+          <span style="color: {% if security_metrics.https_enforced %}#28a745{% else %}#ffc107{% endif %};">
+            {% if security_metrics.https_enforced %}Enforced{% else %}Not Enforced{% endif %}
+          </span>
+        </div>
+        <div>
+          <strong>SQL Injection Protection:</strong>
+          <span style="color: #28a745;">Protected (ORM)</span>
+        </div>
+        <div>
+          <strong>XSS Protection:</strong>
+          <span style="color: #28a745;">Protected (Jinja2)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CI/CD Status Section -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">CI/CD Pipeline Status</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">CI Environment</h4>
+        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: {% if ci_cd_status.is_ci %}#28a745{% else %}#999{% endif %};">
+          {% if ci_cd_status.is_ci %}Active{% else %}Inactive{% endif %}
+        </p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">GitHub Actions</h4>
+        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: {% if ci_cd_status.github_actions %}#28a745{% else %}#999{% endif %};">
+          {% if ci_cd_status.github_actions %}Active{% else %}Inactive{% endif %}
+        </p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Coverage Report</h4>
+        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: {% if ci_cd_status.has_coverage %}#28a745{% else %}#999{% endif %};">
+          {% if ci_cd_status.has_coverage %}Available{% else %}Not Available{% endif %}
+        </p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Test Report</h4>
+        <p style="font-size: 1.5em; margin: 10px 0; font-weight: bold; color: {% if ci_cd_status.has_test_report %}#28a745{% else %}#999{% endif %};">
+          {% if ci_cd_status.has_test_report %}Available{% else %}Not Available{% endif %}
+        </p>
+      </div>
+      
+    </div>
+    
+    {% if ci_cd_status.last_check %}
+    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Last check: {{ ci_cd_status.last_check[:19] }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Performance Metrics Section -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Performance Metrics</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Total Users</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ performance_metrics.total_users }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Total Games</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ performance_metrics.total_games }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Games/Hour</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ performance_metrics.games_last_hour }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Actions/Hour</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ performance_metrics.actions_last_hour }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Activity Rate</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ performance_metrics.activity_rate }}/min</p>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- Code Quality Section -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Code Quality Metrics</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Python Files</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ code_quality.total_files }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Total Lines</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ code_quality.total_lines }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Test Lines</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ code_quality.test_lines }}</p>
+      </div>
+      
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; text-align: center;">
+        <h4 style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;">Code/Test Ratio</h4>
+        <p style="font-size: 2em; margin: 10px 0; font-weight: bold; color: #333;">{{ code_quality.code_to_test_ratio }}:1</p>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- Infrastructure Health Section -->
+  <div style="margin: 30px 0;">
+    <h3 style="border-bottom: 2px solid #333; padding-bottom: 10px;">Infrastructure Health</h3>
+    
+    <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid {% if infrastructure.database_status == 'connected' %}#28a745{% else %}#dc3545{% endif %};">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div>
+          <strong>Database Status:</strong>
+          <span style="color: {% if infrastructure.database_status == 'connected' %}#28a745{% else %}#dc3545{% endif %};">
+            {{ infrastructure.database_status|title }}
+          </span>
+        </div>
+        <div>
+          <strong>Database Type:</strong> {{ infrastructure.database_type }}
+        </div>
+        <div>
+          <strong>Python Version:</strong> {{ infrastructure.python_version }}
+        </div>
+        <div>
+          <strong>Flask Version:</strong> {{ infrastructure.flask_version }}
+        </div>
+        <div>
+          <strong>Environment:</strong>
+          <span style="color: {% if infrastructure.is_production %}#dc3545{% else %}#ffc107{% endif %};">
+            {{ infrastructure.environment|title }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+    <a href="{{ url_for('index') }}" class="button">Back to Game</a>
+    <a href="{{ url_for('dashboard') }}" class="button">Operational Dashboard</a>
+  </div>
+{% endblock %}
+

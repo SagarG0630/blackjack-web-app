@@ -3,3 +3,7 @@ tests/__pycache__/
 *.log
 venv/
 .coverage
+*.db
+instance/
+test-results
+node_modules
