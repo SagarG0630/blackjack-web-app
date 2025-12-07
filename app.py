@@ -13,7 +13,7 @@ from collections import defaultdict
 app = Flask(__name__)
 app.secret_key = "change-me-for-production"
 
-# Base dir where app.py lives
+# Base dir where app.py lives - test
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 DB_DIR = os.environ.get("DB_DIR", BASE_DIR)
